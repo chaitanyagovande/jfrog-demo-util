@@ -32,3 +32,5 @@ override.tf.json
 .env.*
 !.env.example
 .secrets
+
+.jfrog-sdlc/

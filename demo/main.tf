@@ -36,6 +36,9 @@ locals {
   conda_repos   = { for k, v in var.remote_repos : k => v if v.package_type == "conda" }
   ivy_repos     = { for k, v in var.remote_repos : k => v if v.package_type == "ivy" }
 
+  # Remote-only package type: Artifactory has no local or virtual AI Editor Extensions repos
+  aieditorextensions_repos = { for k, v in var.remote_repos : k => v if v.package_type == "aieditorextensions" }
+
   # Collect all local repo keys across all typed resources
   all_local_repo_keys = merge(
     { for k, v in artifactory_local_generic_repository.demo : k => v.key },
@@ -64,6 +67,7 @@ locals {
     { for k, v in artifactory_remote_conan_repository.demo : k => v.key },
     { for k, v in artifactory_remote_conda_repository.demo : k => v.key },
     { for k, v in artifactory_remote_ivy_repository.demo : k => v.key },
+    { for k, v in artifactory_remote_aieditorextensions_repository.demo : k => v.key },
   )
 
   # Collect all virtual repo keys (only for types that have at least one repo)
@@ -267,12 +271,24 @@ resource "artifactory_remote_nuget_repository" "demo" {
 }
 
 resource "artifactory_remote_docker_repository" "demo" {
-  for_each             = local.docker_repos
+  for_each                    = local.docker_repos
+  key                         = "${var.demo_name}-${each.key}"
+  url                         = each.value.url
+  project_key                 = project.demo.key
+  project_environments        = ["DEV"]
+  xray_index                  = true
+  curated                     = var.enable_curation
+  enable_token_authentication = true
+}
+
+resource "artifactory_remote_aieditorextensions_repository" "demo" {
+  for_each             = local.aieditorextensions_repos
   key                  = "${var.demo_name}-${each.key}"
   url                  = each.value.url
   project_key          = project.demo.key
   project_environments = ["DEV"]
   xray_index           = true
+  curated              = var.enable_curation
 }
 
 resource "artifactory_remote_conan_repository" "demo" {
@@ -586,6 +602,7 @@ resource "xray_curation_policy" "malicious" {
   scope                 = "specific_repos"
   policy_action         = "block"
   waiver_request_config = "forbidden"
+  block_from_cache      = var.curation_block_from_cache
 
   depends_on = [
     artifactory_remote_npm_repository.demo,
@@ -595,10 +612,16 @@ resource "xray_curation_policy" "malicious" {
     artifactory_remote_go_repository.demo,
     artifactory_remote_nuget_repository.demo,
     artifactory_remote_docker_repository.demo,
+    artifactory_remote_aieditorextensions_repository.demo,
     artifactory_remote_conan_repository.demo,
     artifactory_remote_conda_repository.demo,
     artifactory_remote_ivy_repository.demo,
   ]
+
+  # Xray adds system waiver labels to every curation policy on create.
+  lifecycle {
+    ignore_changes = [label_waivers]
+  }
 }
 
 resource "xray_curation_policy" "immature" {
@@ -610,6 +633,7 @@ resource "xray_curation_policy" "immature" {
   policy_action         = "block"
   waiver_request_config = "manual"
   decision_owners       = [var.curation_decision_owner_group]
+  block_from_cache      = var.curation_block_from_cache
 
   depends_on = [
     artifactory_remote_npm_repository.demo,
@@ -619,10 +643,16 @@ resource "xray_curation_policy" "immature" {
     artifactory_remote_go_repository.demo,
     artifactory_remote_nuget_repository.demo,
     artifactory_remote_docker_repository.demo,
+    artifactory_remote_aieditorextensions_repository.demo,
     artifactory_remote_conan_repository.demo,
     artifactory_remote_conda_repository.demo,
     artifactory_remote_ivy_repository.demo,
   ]
+
+  # Xray adds system waiver labels to every curation policy on create.
+  lifecycle {
+    ignore_changes = [label_waivers]
+  }
 }
 
 resource "xray_curation_policy" "cvss" {
@@ -634,6 +664,7 @@ resource "xray_curation_policy" "cvss" {
   policy_action         = "block"
   waiver_request_config = "manual"
   decision_owners       = [var.curation_decision_owner_group]
+  block_from_cache      = var.curation_block_from_cache
 
   depends_on = [
     artifactory_remote_npm_repository.demo,
@@ -643,10 +674,16 @@ resource "xray_curation_policy" "cvss" {
     artifactory_remote_go_repository.demo,
     artifactory_remote_nuget_repository.demo,
     artifactory_remote_docker_repository.demo,
+    artifactory_remote_aieditorextensions_repository.demo,
     artifactory_remote_conan_repository.demo,
     artifactory_remote_conda_repository.demo,
     artifactory_remote_ivy_repository.demo,
   ]
+
+  # Xray adds system waiver labels to every curation policy on create.
+  lifecycle {
+    ignore_changes = [label_waivers]
+  }
 }
 
 # ---------------------------------------------------------------------------

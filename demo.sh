@@ -236,7 +236,7 @@ generate_curation_override() {
 import re, sys
 with open(sys.argv[1]) as f:
     content = f.read()
-supported = {'npm', 'pypi', 'maven', 'gradle', 'go', 'nuget'}
+supported = {'npm', 'pypi', 'maven', 'gradle', 'go', 'nuget', 'docker', 'aieditorextensions'}
 for m in re.finditer(
     r'\"([^\"]*-remote)\"\s*=\s*\{[^}]*package_type\s*=\s*\"(\w+)\"',
     content, re.DOTALL,
@@ -271,6 +271,19 @@ EOFJ
 # Demo lifecycle
 # ---------------------------------------------------------------------------
 
+# The xray provider taints curation policies it created successfully, because
+# Xray adds system waiver labels the provider did not plan. Returns 0 only if
+# at least one policy was untainted.
+untaint_curation_policies() {
+  local cleared=1 addr
+  for addr in "xray_curation_policy.malicious[0]" "xray_curation_policy.immature[0]" "xray_curation_policy.cvss[0]"; do
+    if terraform -chdir="${DEMO_DIR}" untaint "${addr}" > /dev/null 2>&1; then
+      cleared=0
+    fi
+  done
+  return ${cleared}
+}
+
 cmd_create() {
   local name="${1:?demo name required}"
   ensure_demo_tfvars "${name}"
@@ -281,10 +294,19 @@ cmd_create() {
   generate_curation_override "${name}"
 
   echo "==> Applying demo '${name}'..."
-  terraform -chdir="${DEMO_DIR}" apply \
+  if ! terraform -chdir="${DEMO_DIR}" apply \
     $(base_var_file_args) \
     -var-file="${DEMOS_DIR}/${name}.tfvars" \
-    "${@:2}"
+    "${@:2}"; then
+    if ! untaint_curation_policies; then
+      exit 1
+    fi
+    echo "==> Retrying apply after clearing the xray provider's false taint on curation policies..."
+    terraform -chdir="${DEMO_DIR}" apply \
+      $(base_var_file_args) \
+      -var-file="${DEMOS_DIR}/${name}.tfvars" \
+      "${@:2}"
+  fi
 
   echo ""
   echo "Demo '${name}' is ready."

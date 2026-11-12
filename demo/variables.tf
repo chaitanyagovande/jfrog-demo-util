@@ -78,9 +78,9 @@ variable "remote_repos" {
   validation {
     condition = alltrue([
       for k, v in var.remote_repos :
-      contains(["npm", "pypi", "maven", "ivy", "docker", "go", "nuget", "conan", "conda", "gems", "gradle", "generic"], v.package_type)
+      contains(["npm", "pypi", "maven", "ivy", "docker", "go", "nuget", "conan", "conda", "gems", "gradle", "generic", "aieditorextensions"], v.package_type)
     ])
-    error_message = "package_type must be one of: npm, pypi, maven, ivy, docker, go, nuget, conan, conda, gems, gradle, generic."
+    error_message = "package_type must be one of: npm, pypi, maven, ivy, docker, go, nuget, conan, conda, gems, gradle, generic, aieditorextensions."
   }
 }
 
@@ -105,6 +105,12 @@ variable "curation_cvss_condition_id" {
   description = "Condition ID for the 'CVE with CVSS 9.0+' curation condition."
   type        = string
   default     = "3"
+}
+
+variable "curation_block_from_cache" {
+  description = "When true, curation policies also block packages served from Artifactory's cache ('Enable policy on cached packages' in the UI). Defaults to false."
+  type        = bool
+  default     = false
 }
 
 variable "curation_decision_owner_group" {

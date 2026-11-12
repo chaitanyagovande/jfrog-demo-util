@@ -77,6 +77,34 @@ run "typed_virtual_repo_aggregates_matching_type" {
   }
 }
 
+run "aieditorextensions_remote_is_typed_and_curated" {
+  command = plan
+
+  variables {
+    remote_repos = {
+      "open-vsx-remote" = {
+        url          = "https://open-vsx.org/vscode/gallery"
+        package_type = "aieditorextensions"
+      }
+    }
+  }
+
+  assert {
+    condition     = artifactory_remote_aieditorextensions_repository.demo["open-vsx-remote"].key == "testdemo-open-vsx-remote"
+    error_message = "AI Editor Extensions remote key must follow {demo_name}-{suffix} pattern."
+  }
+
+  assert {
+    condition     = artifactory_remote_aieditorextensions_repository.demo["open-vsx-remote"].url == "https://open-vsx.org/vscode/gallery"
+    error_message = "AI Editor Extensions remote must point at the configured gallery URL."
+  }
+
+  assert {
+    condition     = artifactory_remote_aieditorextensions_repository.demo["open-vsx-remote"].curated == true
+    error_message = "AI Editor Extensions remote must be curated when enable_curation is true."
+  }
+}
+
 run "dry_run_policy_is_prefixed" {
   command = plan
 
